@@ -1,0 +1,14 @@
+schemaVersion: 1.1.0
+outerDocumentSettings:
+  title: "OCI Free Tier: Node + Managed MySQL (Always Free)"
+  description: "Always Free VM (A1) with Docker Compose for the app, and a managed MySQL HeatWave Always Free DB System."
+variables:
+  region: { title: "Region", type: string, required: true }
+  compartment_ocid: { title: "Compartment", type: string, required: true }
+  ssh_public_key: { title: "SSH Public Key", type: string, multiline: true, required: true }
+  instance_ocpus: { title: "A1 OCPUs", type: integer, default: 1 }
+  instance_memory_gbs: { title: "A1 Memory (GiB)", type: integer, default: 2 }
+  app_port: { title: "App Port", type: integer, default: 3000 }
+  mysql_admin_username: { title: "MySQL Admin Username", type: string, default: "admin" }
+  mysql_admin_password: { title: "MySQL Admin Password", type: password, required: true }
+  db_name: { title: "Database Name", type: string, default: "appdb" }
