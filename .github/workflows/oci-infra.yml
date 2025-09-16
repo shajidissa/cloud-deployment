@@ -1,34 +1,52 @@
 name: "OCI Infra: Plan / Apply / Destroy (Managed MySQL Free)"
+
 on:
   workflow_dispatch:
     inputs:
       action:
         description: "plan | apply | destroy"
         required: true
-        default: "plan"
-permissions: { contents: read, id-token: write }
+        default: "apply"
+
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  run:
+  infra:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
-      STACK_ID: ${{ secrets.OCI_STACK_OCID }}
-      OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
-      OCI_CLI_TENANCY:     ${{ secrets.OCI_CLI_TENANCY }}
-      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
-      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
-      OCI_CLI_REGION:      ${{ secrets.OCI_CLI_REGION }}
-      DB_PASSWORD:         ${{ secrets.DB_PASSWORD }}
+      STACK_ID:              ${{ secrets.OCI_STACK_OCID }}
+      OCI_CLI_USER:          ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY:       ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT:   ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT:   ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_CLI_REGION:        ${{ secrets.OCI_CLI_REGION }}
+      DB_PASSWORD:           ${{ secrets.DB_PASSWORD }}
+
     steps:
-      - uses: oracle-actions/run-oci-cli-command@v1.3.2
-        with: { command: "iam user get --user-id $OCI_CLI_USER" }
-      - uses: oracle-actions/run-oci-cli-command@v1.3.2
+      # Auth sanity check against your stack (prints full error if auth is wrong)
+      - name: Sanity check (stack get)
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
+        with:
+          command: "resource-manager stack get --stack-id $STACK_ID"
+          silent: false
+
+      # Keep the MySQL admin password in the stack in sync with the GitHub Secret
+      - name: Ensure MySQL admin password variable
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager stack update
             --stack-id "$STACK_ID"
             --variables '{"mysql_admin_password":"'"$DB_PASSWORD"'"}'
             --wait-for-state SUCCEEDED
-      - if: inputs.action == 'plan'
+          silent: false
+
+      # -------- PLAN --------
+      - name: Plan
+        if: inputs.action == 'plan'
         id: plan
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
@@ -37,13 +55,20 @@ jobs:
             --stack-id "$STACK_ID"
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
-      - if: inputs.action == 'plan'
+          silent: false
+
+      - name: Show plan logs
+        if: inputs.action == 'plan'
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs
             --job-id ${{ steps.plan.outputs.raw_output }}
-      - if: inputs.action == 'apply'
+          silent: false
+
+      # -------- APPLY --------
+      - name: Apply (AUTO_APPROVED)
+        if: inputs.action == 'apply'
         id: apply
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
@@ -53,13 +78,20 @@ jobs:
             --execution-plan-strategy AUTO_APPROVED
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
-      - if: inputs.action == 'apply'
+          silent: false
+
+      - name: Show apply logs
+        if: inputs.action == 'apply'
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs
             --job-id ${{ steps.apply.outputs.raw_output }}
-      - if: inputs.action == 'destroy'
+          silent: false
+
+      # -------- DESTROY --------
+      - name: Destroy
+        if: inputs.action == 'destroy'
         id: destroy
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
@@ -68,9 +100,13 @@ jobs:
             --stack-id "$STACK_ID"
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
-      - if: inputs.action == 'destroy'
+          silent: false
+
+      - name: Show destroy logs
+        if: inputs.action == 'destroy'
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs
             --job-id ${{ steps.destroy.outputs.raw_output }}
+          silent: false
