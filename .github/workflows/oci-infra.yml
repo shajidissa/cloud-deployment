@@ -16,43 +16,47 @@ jobs:
   infra:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+
     env:
-      STACK_ID:              ${{ secrets.OCI_STACK_OCID }}
-      OCI_CLI_USER:          ${{ secrets.OCI_CLI_USER }}
-      OCI_CLI_TENANCY:       ${{ secrets.OCI_CLI_TENANCY }}
-      OCI_CLI_FINGERPRINT:   ${{ secrets.OCI_CLI_FINGERPRINT }}
-      OCI_CLI_KEY_CONTENT:   ${{ secrets.OCI_CLI_KEY_CONTENT }}
-      OCI_CLI_REGION:        ${{ secrets.OCI_CLI_REGION }}
-      DB_PASSWORD:           ${{ secrets.DB_PASSWORD }}
+      # OCI auth (provided via repo secrets)
+      OCI_CLI_USER:        ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY:     ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT: ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_CLI_REGION:      ${{ secrets.OCI_CLI_REGION }}
 
     steps:
-      # Auth sanity check against your stack (prints full error if auth is wrong)
-      - name: Sanity check (stack get)
+      - name: Sanity check (who am I)
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: "resource-manager stack get --stack-id $STACK_ID"
+          command: "iam user get --user-id ${{ secrets.OCI_CLI_USER }}"
           silent: false
 
-      # Keep the MySQL admin password in the stack in sync with the GitHub Secret
+      - name: Sanity check (stack exists)
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
+        with:
+          command: "resource-manager stack get --stack-id ${{ secrets.OCI_STACK_OCID }}"
+          silent: false
+
       - name: Ensure MySQL admin password variable
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
+          command: >-
             resource-manager stack update
-            --stack-id "$STACK_ID"
-            --variables '{"mysql_admin_password":"'"$DB_PASSWORD"'"}'
+            --stack-id ${{ secrets.OCI_STACK_OCID }}
+            --variables '{"mysql_admin_password":"${{ secrets.DB_PASSWORD }}"}'
             --wait-for-state SUCCEEDED
           silent: false
 
-      # -------- PLAN --------
+      # ---------- PLAN ----------
       - name: Plan
         if: inputs.action == 'plan'
         id: plan
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
+          command: >-
             resource-manager job create-plan-job
-            --stack-id "$STACK_ID"
+            --stack-id ${{ secrets.OCI_STACK_OCID }}
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
           silent: false
@@ -61,20 +65,18 @@ jobs:
         if: inputs.action == 'plan'
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
-            resource-manager job get-job-logs
-            --job-id ${{ steps.plan.outputs.raw_output }}
+          command: "resource-manager job get-job-logs --job-id ${{ steps.plan.outputs.raw_output }}"
           silent: false
 
-      # -------- APPLY --------
+      # ---------- APPLY ----------
       - name: Apply (AUTO_APPROVED)
         if: inputs.action == 'apply'
         id: apply
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
+          command: >-
             resource-manager job create-apply-job
-            --stack-id "$STACK_ID"
+            --stack-id ${{ secrets.OCI_STACK_OCID }}
             --execution-plan-strategy AUTO_APPROVED
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
@@ -84,20 +86,18 @@ jobs:
         if: inputs.action == 'apply'
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
-            resource-manager job get-job-logs
-            --job-id ${{ steps.apply.outputs.raw_output }}
+          command: "resource-manager job get-job-logs --job-id ${{ steps.apply.outputs.raw_output }}"
           silent: false
 
-      # -------- DESTROY --------
+      # ---------- DESTROY ----------
       - name: Destroy
         if: inputs.action == 'destroy'
         id: destroy
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
+          command: >-
             resource-manager job create-destroy-job
-            --stack-id "$STACK_ID"
+            --stack-id ${{ secrets.OCI_STACK_OCID }}
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
           silent: false
@@ -106,7 +106,5 @@ jobs:
         if: inputs.action == 'destroy'
         uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
-          command: >
-            resource-manager job get-job-logs
-            --job-id ${{ steps.destroy.outputs.raw_output }}
+          command: "resource-manager job get-job-logs --job-id ${{ steps.destroy.outputs.raw_output }}"
           silent: false
