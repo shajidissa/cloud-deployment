@@ -37,17 +37,6 @@ jobs:
           command: "resource-manager stack get --stack-id ${{ secrets.OCI_STACK_OCID }}"
           silent: false
 
-      # FIXED: wait for ACTIVE + escaped JSON
-      - name: Ensure MySQL admin password variable
-        uses: oracle-actions/run-oci-cli-command@v1.3.2
-        with:
-          command: >-
-            resource-manager stack update
-            --stack-id ${{ secrets.OCI_STACK_OCID }}
-            --variables "{\"mysql_admin_password\":\"${{ secrets.DB_PASSWORD }}\"}"
-            --wait-for-state ACTIVE
-          silent: false
-
       # ---------- PLAN ----------
       - name: Plan
         if: inputs.action == 'plan'
