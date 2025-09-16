@@ -19,9 +19,9 @@ jobs:
       OCI_CLI_REGION:      ${{ secrets.OCI_CLI_REGION }}
       DB_PASSWORD:         ${{ secrets.DB_PASSWORD }}
     steps:
-      - uses: oracle-actions/run-oci-cli-command@v1
+      - uses: oracle-actions/run-oci-cli-command@v1.3.2
         with: { command: "iam user get --user-id $OCI_CLI_USER" }
-      - uses: oracle-actions/run-oci-cli-command@v1
+      - uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager stack update
@@ -30,7 +30,7 @@ jobs:
             --wait-for-state SUCCEEDED
       - if: inputs.action == 'plan'
         id: plan
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job create-plan-job
@@ -38,14 +38,14 @@ jobs:
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
       - if: inputs.action == 'plan'
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs
             --job-id ${{ steps.plan.outputs.raw_output }}
       - if: inputs.action == 'apply'
         id: apply
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job create-apply-job
@@ -54,14 +54,14 @@ jobs:
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
       - if: inputs.action == 'apply'
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs
             --job-id ${{ steps.apply.outputs.raw_output }}
       - if: inputs.action == 'destroy'
         id: destroy
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job create-destroy-job
@@ -69,7 +69,7 @@ jobs:
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
       - if: inputs.action == 'destroy'
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs

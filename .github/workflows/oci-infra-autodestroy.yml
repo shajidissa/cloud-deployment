@@ -16,17 +16,17 @@ jobs:
       OCI_CLI_KEY_CONTENT:   ${{ secrets.OCI_CLI_KEY_CONTENT }}
       OCI_CLI_REGION:        ${{ secrets.OCI_CLI_REGION }}
     steps:
-      - uses: oracle-actions/run-oci-cli-command@v1
+      - uses: oracle-actions/run-oci-cli-command@v1.3.2
         with: { command: "iam user get --user-id $OCI_CLI_USER" }
       - id: destroy
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job create-destroy-job
             --stack-id "$STACK_ID"
             --wait-for-state SUCCEEDED --wait-for-state FAILED
           query: "data.id"
-      - uses: oracle-actions/run-oci-cli-command@v1
+      - uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job get-job-logs

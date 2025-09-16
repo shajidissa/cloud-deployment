@@ -15,7 +15,7 @@ jobs:
       OCI_CLI_REGION:        ${{ secrets.OCI_CLI_REGION }}
     steps:
       - id: job
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager job list
@@ -23,7 +23,7 @@ jobs:
             --query "data[?"operation"=='APPLY' && "lifecycle-state"=='SUCCEEDED']|[0].id"
             --raw-output
       - id: assoc
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: >
             resource-manager associated-resource-summary list-job-associated-resources
@@ -31,20 +31,20 @@ jobs:
             --all
             --raw-output
       - id: inst
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: |
             INST_ID=$(echo '${{ steps.assoc.outputs.raw_output }}' | jq -r '.data[] | select(."resource-type"=="coreinstance") | .identifier' | head -n1)
             oci compute instance get --instance-id "$INST_ID" --query "{shape:data.shape, ocpus:data."shape-config".ocpus, memory:data."shape-config"."memory-in-gbs"}" --raw-output
       - id: bv
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: |
             INST_ID=$(echo '${{ steps.assoc.outputs.raw_output }}' | jq -r '.data[] | select(."resource-type"=="coreinstance") | .identifier' | head -n1)
             BVID=$(oci compute boot-volume-attachment list --all --instance-id "$INST_ID" --query "data[0]."boot-volume-id"" --raw-output)
             oci bv boot-volume get --boot-volume-id "$BVID" --query "{size_gb:data."size-in-gbs"}" --raw-output
       - id: mds
-        uses: oracle-actions/run-oci-cli-command@v1
+        uses: oracle-actions/run-oci-cli-command@v1.3.2
         with:
           command: |
             DB_ID=$(echo '${{ steps.assoc.outputs.raw_output }}' | jq -r '.data[] | select(."resource-type"=="mysqlmysqldbsystem") | .identifier' | head -n1)
