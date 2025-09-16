@@ -1,0 +1,60 @@
+name: "OCI Free-Tier Audit"
+on:
+  workflow_dispatch: {}
+  schedule: [ { cron: "0 8 * * *" } ]
+permissions: { contents: read, id-token: write }
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      STACK_ID:              ${{ secrets.OCI_STACK_OCID }}
+      OCI_CLI_USER:          ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY:       ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT:   ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT:   ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_CLI_REGION:        ${{ secrets.OCI_CLI_REGION }}
+    steps:
+      - id: job
+        uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: >
+            resource-manager job list
+            --stack-id $STACK_ID --all
+            --query "data[?"operation"=='APPLY' && "lifecycle-state"=='SUCCEEDED']|[0].id"
+            --raw-output
+      - id: assoc
+        uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: >
+            resource-manager associated-resource-summary list-job-associated-resources
+            --job-id ${{ steps.job.outputs.raw_output }}
+            --all
+            --raw-output
+      - id: inst
+        uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: |
+            INST_ID=$(echo '${{ steps.assoc.outputs.raw_output }}' | jq -r '.data[] | select(."resource-type"=="coreinstance") | .identifier' | head -n1)
+            oci compute instance get --instance-id "$INST_ID" --query "{shape:data.shape, ocpus:data."shape-config".ocpus, memory:data."shape-config"."memory-in-gbs"}" --raw-output
+      - id: bv
+        uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: |
+            INST_ID=$(echo '${{ steps.assoc.outputs.raw_output }}' | jq -r '.data[] | select(."resource-type"=="coreinstance") | .identifier' | head -n1)
+            BVID=$(oci compute boot-volume-attachment list --all --instance-id "$INST_ID" --query "data[0]."boot-volume-id"" --raw-output)
+            oci bv boot-volume get --boot-volume-id "$BVID" --query "{size_gb:data."size-in-gbs"}" --raw-output
+      - id: mds
+        uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: |
+            DB_ID=$(echo '${{ steps.assoc.outputs.raw_output }}' | jq -r '.data[] | select(."resource-type"=="mysqlmysqldbsystem") | .identifier' | head -n1)
+            oci mysql db-system get --db-system-id "$DB_ID" --query "{shape:data."shape-name", endpoints:data.endpoints}" --raw-output
+      - name: Summarize
+        run: |
+          echo "### Free-tier audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Compute:** \`$(echo '${{ steps.inst.outputs.raw_output }}' | jq -r '.shape')\` — OCPUs \`$(echo '${{ steps.inst.outputs.raw_output }}' | jq -r '.ocpus')\` / Memory \`$(echo '${{ steps.inst.outputs.raw_output }}' | jq -r '.memory')\` GiB" >> $GITHUB_STEP_SUMMARY
+          echo "**Boot Volume:** \`$(echo '${{ steps.bv.outputs.raw_output }}' | jq -r '.size_gb')\` GiB" >> $GITHUB_STEP_SUMMARY
+          echo "**MySQL Shape:** \`$(echo '${{ steps.mds.outputs.raw_output }}' | jq -r '.shape')\` (expect \`MySQL.Free\`)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Always Free caps: A1 total across tenancy 4 OCPUs/24GiB; block volume total 200 GiB; one MySQL HeatWave **Always Free** DB in home region." >> $GITHUB_STEP_SUMMARY

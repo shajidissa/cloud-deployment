@@ -1,0 +1,70 @@
+# ---------- OS / Editor junk ----------
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
+*.iml
+*.txt
+
+# ---------- Node (app/) ----------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+# Keep lockfiles for reproducible builds:
+# !app/package-lock.json
+# !app/yarn.lock
+# !app/pnpm-lock.yaml
+
+# Common build outputs
+dist/
+build/
+coverage/
+.nyc_output/
+.next/
+*.pid
+*.log
+
+# Env files (we inject via GitHub Actions / cloud-init)
+.env
+.env.*
+!.env.example
+.envrc
+
+# ---------- Docker ----------
+docker-compose.override.yml
+
+# ---------- Terraform (infra/) ----------
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.tfstate.lock.info
+terraform/crash.log
+terraform/crash.*.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+terraform/plan*.out
+terraform/oci-stack.zip
+# Keep the dependency lock file (recommended to commit):
+# !terraform/.terraform.lock.hcl
+
+# ---------- Keys / secrets (never commit) ----------
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# ---------- Archives ----------
+*.zip
+*.tar.gz

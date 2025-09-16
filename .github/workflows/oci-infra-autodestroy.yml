@@ -1,0 +1,33 @@
+name: "OCI Infra: Auto Destroy Nightly"
+on:
+  schedule: [ { cron: "30 22 * * *" } ]
+  workflow_dispatch: {}
+permissions: { contents: read, id-token: write }
+concurrency: { group: oci-infra-destroy, cancel-in-progress: false }
+jobs:
+  destroy:
+    if: ${{ vars.ENABLE_AUTODESTROY != 'false' }}
+    runs-on: ubuntu-latest
+    env:
+      STACK_ID:              ${{ secrets.OCI_STACK_OCID }}
+      OCI_CLI_USER:          ${{ secrets.OCI_CLI_USER }}
+      OCI_CLI_TENANCY:       ${{ secrets.OCI_CLI_TENANCY }}
+      OCI_CLI_FINGERPRINT:   ${{ secrets.OCI_CLI_FINGERPRINT }}
+      OCI_CLI_KEY_CONTENT:   ${{ secrets.OCI_CLI_KEY_CONTENT }}
+      OCI_CLI_REGION:        ${{ secrets.OCI_CLI_REGION }}
+    steps:
+      - uses: oracle-actions/run-oci-cli-command@v1
+        with: { command: "iam user get --user-id $OCI_CLI_USER" }
+      - id: destroy
+        uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: >
+            resource-manager job create-destroy-job
+            --stack-id "$STACK_ID"
+            --wait-for-state SUCCEEDED --wait-for-state FAILED
+          query: "data.id"
+      - uses: oracle-actions/run-oci-cli-command@v1
+        with:
+          command: >
+            resource-manager job get-job-logs
+            --job-id ${{ steps.destroy.outputs.raw_output }}
